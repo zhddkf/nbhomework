@@ -1,18 +1,22 @@
+<!-- templates/result.html -->
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
-    <title>가위바위보 결과</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>게임결과</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 </head>
 
 <body>
-    <h2>가위바위보 결과</h2>
-    <p>나의 패 : {{ user }}</p>
-    <p>컴퓨터의 패 : {{ computer }}</p>
-    <p>결과 : {{ result }}</p>
-    <p>전적 : </p>
-    <p><a href='/'>다시 하기</a></p>
+    <div class="container">
+        <h1>승부</h1>
+        <p>사용자: {{ user_choice }}</p>
+        <p>컴퓨터: {{ computer_choice }}</p>
+        <p>승부: {{ result }}</p>
+        <p><a href="{{ url_for('play') }}" class="btn btn-primary">다시 하기</a></p>
+    </div>
 </body>
 
 </html>
