@@ -1,73 +1,157 @@
-from flask import Flask, render_template, request
-import random
+from flask import Flask, request, render_template, redirect, url_for, session, flash
 import sqlite3
+from flask_bootstrap import Bootstrap
+import random
+from flask_wtf import FlaskForm
+from wtforms import StringField, PasswordField, SubmitField
+from wtforms.validators import DataRequired, Length, EqualTo
+# from request
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'your_secret_key'
+bootstrap = Bootstrap(app)
 
 
-@app.route('/')
+# SQLite 데이터베이스 초기화 함수
+def init_db():
+    with sqlite3.connect('database.db') as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS records (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                result TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        """)
+        conn.commit()
+
+
+# 사용자
+class User:
+    def __init__(self, id, username, password):
+        self.id = id
+        self.username = username
+        self.password = password
+
+
+# 가위바위보 폼
+class PlayForm(FlaskForm):
+    choice = StringField('나의 패 선택하기', validators=[DataRequired()], render_kw={
+                         "placeholder": "가위/바위/보 중 하나를 입력하세요"})
+    submit = SubmitField('Play')
+
+
+# 회원가입 폼
+class SignupForm(FlaskForm):
+    username = StringField('Username', validators=[
+                           DataRequired(), Length(min=3, max=20)])
+    password = PasswordField('Password', validators=[
+                             DataRequired(), Length(min=4, max=20)])
+    confirm_password = PasswordField('Confirm Password', validators=[
+                                     DataRequired(), EqualTo('password')])
+    submit = SubmitField('Sign Up')
+
+
+# 초기화 함수
+init_db()
+
+
+# 라우트들
+@app.route('/', methods=['GET', 'POST'])
 def index():
     return render_template('index.html')
 
 
-# 패 선택하기
-@app.route('/play', methods=['POST'])
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    form = SignupForm()
+    if form.validate_on_submit():
+        username = form.username.data
+        password = form.password.data
+        with sqlite3.connect('database.db') as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO users (username, password) VALUES (?, ?)", (username, password))
+            conn.commit()
+            flash('회원가입이 완료되었습니다. 로그인하세요', 'success')
+            return redirect(url_for('login'))
+    return render_template('signup.html', form=form)
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if 'username' in session:
+        return redirect(url_for('play'))
+
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        with sqlite3.connect('database.db') as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT * FROM users WHERE username = ? AND password = ?", (username, password))
+            user = cursor.fetchone()
+            if user:
+                session['username'] = user[1]
+                flash('로그인 완료!', 'success')
+                return redirect(url_for('play'))
+            else:
+                flash('다시 시도해주세요.', 'danger')
+
+    return render_template('login.html')
+
+
+@app.route('/logout')
+def logout():
+    session.pop('username', None)
+    flash('로그아웃했습니다.', 'success')
+    return redirect(url_for('index'))
+
+
+@app.route('/play', methods=['GET', 'POST'])
 def play():
-    options = ['가위', '바위', '보']
+    if 'username' not in session:
+        flash('우선 로그인하세요.', 'warning')
+        return redirect(url_for('login'))
 
-    user = request.form['choice']
-    computer = random.choice(options)
+    form = PlayForm()
+    if form.validate_on_submit():
+        user_choice = form.choice.data
+        computer_choice = random.choice(['가위', '바위', '보'])
 
-    result = get_game_result(user, computer)
+        # 가위바위보 규칙
+        if user_choice == computer_choice:
+            result = '비겼습니다'
+        elif (user_choice == '가위' and computer_choice == '보') or \
+             (user_choice == '바위' and computer_choice == '가위') or \
+             (user_choice == '보' and computer_choice == '바위'):
+            result = '이겼습니다'
+        else:
+            result = '졌습니다'
 
-    return render_template('result.html', user=user, computer=computer, result=result)
-#--- sql코드 추가한 후로 23번 라인이 오류 남
+        # 결과 저장
+        with sqlite3.connect('database.db') as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT id FROM users WHERE username = ?", (session['username'],))
+            user_id = cursor.fetchone()[0]
+            cursor.execute(
+                "INSERT INTO records (user_id, result) VALUES (?, ?)", (user_id, result))
+            conn.commit()
 
-# 승부규칙
-def get_game_result(u, c):
-    win=0
-    draw=0
-    lose=0
+        return render_template('result.html', user_choice=user_choice, computer_choice=computer_choice, result=result)
 
-    if u == c:
-        draw+=1
-        return '비겼습니다'
-    elif (u == '가위' and c == '보') or (u == '바위' and c == '가위') or (u == '보' and c == '바위'):
-        win+=1
-        return '이겼습니다'
-    else:
-        lose+=1
-        return '졌습니다'
-    
-
-# 데이터베이스 선언
-def init_db():
-    connect=sqlite3.connect('score.db')
-    c=connect.cursor()
-    c.execute('''create table SCORE
-                 (id char(10), user TEXT, computer TEXT, result TEXT)''')
-    connect.commit()
-    connect.close()
-
-# db에 승부 입력
-def save_result(user, computer, result):
-    connect=sqlite3.connect('score.db')
-    c=connect.cursor()
-    c.execute('insert into score (user, computer, result) \
-              values (?, ?, ?)', user, computer, result)
-    connect.commit()
-    connect.close()
+    return render_template('play.html', form=form)
 
 
-# 전적 조회
-def check_score():
-    connect=sqlite3.connect('score.db')
-    c=connect.cursor()
-    c.execute('select * from score order by id desc')
-    score=c.fetchall()
-    connect.close()
-    return score
-
-
+# 메인 함수
 if __name__ == '__main__':
     app.run(debug=True)
