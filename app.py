@@ -42,14 +42,14 @@ class User:
         self.password = password
 
 
-# 가위바위보 폼
+# 가위바위보
 class PlayForm(FlaskForm):
     choice = StringField('나의 패 선택하기', validators=[DataRequired()], render_kw={
                          "placeholder": "가위/바위/보 중 하나를 입력하세요"})
     submit = SubmitField('Play')
 
 
-# 회원가입 폼
+# 회원가입
 class SignupForm(FlaskForm):
     username = StringField('Username', validators=[
                            DataRequired(), Length(min=3, max=20)])
@@ -101,7 +101,7 @@ def login():
             user = cursor.fetchone()
             if user:
                 session['username'] = user[1]
-                flash('로그인 완료!', 'success')
+                flash('로그인 완료', 'success')
                 return redirect(url_for('play'))
             else:
                 flash('다시 시도해주세요.', 'danger')
@@ -152,6 +152,6 @@ def play():
     return render_template('play.html', form=form)
 
 
-# 메인 함수
+# 메인
 if __name__ == '__main__':
     app.run(debug=True)
