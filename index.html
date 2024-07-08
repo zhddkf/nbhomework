@@ -1,21 +1,20 @@
+<!-- templates/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
-        <meta charset="UTF-8">
-        <title>가위바위보 게임</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>가위바위보</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 </head>
 
 <body>
-        <h2>가위바위보 게임</h2>
-        <form action='/play' method='post'>
-                <p>패를 선택합시다 :</p>
-                <label>✌️<input type='radio' name='choice' value='가위'></label>
-                <label>✊<input type='radio' name='choice' value='바위'></label>
-                <label>✋<input type='radio' name='choice' value='보'></label>
-
-                <br><button type='submit'>제출</button>
-        </form>
+    <div class="container">
+        <h1>가위바위보 게임</h1>
+        <p><a href="{{ url_for('signup') }}" class="btn btn-primary">가입하기</a></p>
+        <p><a href="{{ url_for('login') }}" class="btn btn-success">로그인</a></p>
+    </div>
 </body>
 
 </html>
